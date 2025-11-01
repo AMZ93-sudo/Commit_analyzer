@@ -1,0 +1,670 @@
+
+Analyze the following code changes and provide a detailed analysis of the impact on the system from RAM/ROM consumption and runtime CPU load perspectives.
+
+**Code Changes:**
+```diff
+diff --git a/analyzer.py b/analyzer.py
+new file mode 100644
+index 0000000..0ebba17
+--- /dev/null
++++ b/analyzer.py
+@@ -0,0 +1,524 @@
++#!/usr/bin/env python3
++"""
++Git Commit Analysis Tool for ADAS Automotive Development
++=========================================================
++
++This tool analyzes code changes between two Git commits and generates
++comprehensive prompts for Gemini Code Assist in Visual Studio Code.
++
++Author: ADAS Senior Software Engineer
++Target: Automotive ADAS Development Teams
++"""
++
++import os
++import sys
++from typing import Dict, List, Tuple, Optional
++from dataclasses import dataclass
++from datetime import datetime
++import json
++import argparse
++
++try:
++    from pydriller import Repository
++    from pydriller.domain.commit import Commit
++except ImportError:
++    print("ERROR: PyDriller is required. Install it using: pip install pydriller")
++    sys.exit(1)
++
++
++# ============================================================================
++# DATA MODELS
++# ============================================================================
++
++@dataclass
++class FileChange:
++    """Represents changes in a single file"""
++    filename: str
++    old_path: Optional[str]
++    new_path: str
++    change_type: str
++    added_lines: int
++    deleted_lines: int
++    diff: str
++    complexity: int
++    methods_changed: List[str]
++
++
++@dataclass
++class CommitAnalysis:
++    """Stores complete analysis of commit differences"""
++    repo_path: str
++    commit_from: str
++    commit_to: str
++    commit_from_hash: str
++    commit_to_hash: str
++    commit_from_message: str
++    commit_to_message: str
++    commit_from_author: str
++    commit_to_author: str
++    commit_from_date: datetime
++    commit_to_date: datetime
++    total_files_changed: int
++    total_lines_added: int
++    total_lines_deleted: int
++    file_changes: List[FileChange]
++
++
++# ============================================================================
++# REPOSITORY VALIDATOR
++# ============================================================================
++
++class RepositoryValidator:
++    """Validates repository and commit inputs"""
++    
++    @staticmethod
++    def validate_repo_path(repo_path: str) -> bool:
++        """Check if the repository path is valid"""
++        if not os.path.exists(repo_path):
++            raise ValueError(f"Repository path does not exist: {repo_path}")
++        
++        git_dir = os.path.join(repo_path, '.git')
++        if not os.path.exists(git_dir):
++            raise ValueError(f"Not a valid git repository: {repo_path}")
++        
++        return True
++    
++    @staticmethod
++    def get_commit_object(repo_path: str, commit_id: str) -> Commit:
++        """Retrieve commit object from repository"""
++        try:
++            for commit in Repository(repo_path, single=commit_id).traverse_commits():
++                return commit
++        except Exception as e:
++            raise ValueError(f"Invalid commit identifier '{commit_id}': {str(e)}")
++
++
++# ============================================================================
++# COMMIT DIFFERENCE ANALYZER
++# ============================================================================
++
++class CommitDifferenceAnalyzer:
++    """Analyzes differences between two commits"""
++    
++    def __init__(self, repo_path: str):
++        self.repo_path = repo_path
++        self.validator = RepositoryValidator()
++        self.validator.validate_repo_path(repo_path)
++    
++    def get_commit_info(self, commit_id: str) -> Tuple[str, str, str, datetime]:
++        """Extract commit information"""
++        commit = self.validator.get_commit_object(self.repo_path, commit_id)
++        return (
++            commit.hash,
++            commit.msg,
++            commit.author.name,
++            commit.author_date
++        )
++    
++    def analyze_commits(self, commit_from: str, commit_to: str) -> CommitAnalysis:
++        """Perform comprehensive analysis between two commits"""
++        
++        from_hash, from_msg, from_author, from_date = self.get_commit_info(commit_from)
++        to_hash, to_msg, to_author, to_date = self.get_commit_info(commit_to)
++        
++        file_changes = []
++        total_added = 0
++        total_deleted = 0
++        
++        commits = list(Repository(
++            self.repo_path,
++            from_commit=commit_from,
++            to_commit=commit_to
++        ).traverse_commits())
++        
++        files_dict = {}
++        for commit in commits:
++            for modified_file in commit.modified_files:
++                filename = modified_file.new_path or modified_file.old_path
++                
++                if filename not in files_dict:
++                    files_dict[filename] = {
++                        'added': 0,
++                        'deleted': 0,
++                        'diff': [],
++                        'change_type': modified_file.change_type.name,
++                        'old_path': modified_file.old_path,
++                        'new_path': modified_file.new_path,
++                        'complexity': modified_file.complexity if hasattr(modified_file, 'complexity') else 0,
++                        'methods': set()
++                    }
++                
++                files_dict[filename]['added'] += modified_file.added_lines
++                files_dict[filename]['deleted'] += modified_file.deleted_lines
++                
++                if modified_file.diff:
++                    files_dict[filename]['diff'].append(modified_file.diff)
++                
++                if hasattr(modified_file, 'changed_methods'):
++                    for method in modified_file.changed_methods:
++                        files_dict[filename]['methods'].add(method.name)
++        
++        for filename, data in files_dict.items():
++            file_change = FileChange(
++                filename=filename,
++                old_path=data['old_path'],
++                new_path=data['new_path'],
++                change_type=data['change_type'],
++                added_lines=data['added'],
++                deleted_lines=data['deleted'],
++                diff='\n'.join(data['diff']),
++                complexity=data['complexity'],
++                methods_changed=list(data['methods'])
++            )
++            file_changes.append(file_change)
++            total_added += data['added']
++            total_deleted += data['deleted']
++        
++        return CommitAnalysis(
++            repo_path=self.repo_path,
++            commit_from=commit_from,
++            commit_to=commit_to,
++            commit_from_hash=from_hash,
++            commit_to_hash=to_hash,
++            commit_from_message=from_msg,
++            commit_to_message=to_msg,
++            commit_from_author=from_author,
++            commit_to_author=to_author,
++            commit_from_date=from_date,
++            commit_to_date=to_date,
++            total_files_changed=len(file_changes),
++            total_lines_added=total_added,
++            total_lines_deleted=total_deleted,
++            file_changes=file_changes
++        )
++
++
++# ============================================================================
++# GEMINI PROMPT GENERATOR
++# ============================================================================
++
++class GeminiPromptGenerator:
++    """Generates structured prompts for Gemini Code Assist"""
++    
++    def __init__(self, analysis: CommitAnalysis):
++        self.analysis = analysis
++    
++    def generate_prompt(self) -> str:
++        """Create comprehensive prompt for Gemini Code Assist"""
++        
++        prompt = f"""# Code Change Analysis Request for ADAS Automotive System
++
++## Context
++You are analyzing code changes in an automotive ADAS (Advanced Driver Assistance Systems) repository. This is a safety-critical system that requires thorough understanding of code modifications and their impact.
++
++## Repository Information
++- Repository Path: {self.analysis.repo_path}
++- Analysis Period: {self.analysis.commit_from_date.strftime('%Y-%m-%d %H:%M:%S')} to {self.analysis.commit_to_date.strftime('%Y-%m-%d %H:%M:%S')}
++
++## Commit Range
++### From Commit: {self.analysis.commit_from_hash[:8]}
++- Message: {self.analysis.commit_from_message}
++- Author: {self.analysis.commit_from_author}
++- Date: {self.analysis.commit_from_date.strftime('%Y-%m-%d %H:%M:%S')}
++
++### To Commit: {self.analysis.commit_to_hash[:8]}
++- Message: {self.analysis.commit_to_message}
++- Author: {self.analysis.commit_to_author}
++- Date: {self.analysis.commit_to_date.strftime('%Y-%m-%d %H:%M:%S')}
++
++## Summary of Changes
++- Total Files Modified: {self.analysis.total_files_changed}
++- Total Lines Added: {self.analysis.total_lines_added}
++- Total Lines Deleted: {self.analysis.total_lines_deleted}
++- Net Change: {self.analysis.total_lines_added - self.analysis.total_lines_deleted} lines
++
++## Detailed File Changes
++"""
++        
++        for idx, file_change in enumerate(self.analysis.file_changes, 1):
++            prompt += f"\n### File {idx}: {file_change.filename}\n"
++            prompt += f"- Change Type: {file_change.change_type}\n"
++            prompt += f"- Lines Added: {file_change.added_lines}\n"
++            prompt += f"- Lines Deleted: {file_change.deleted_lines}\n"
++            
++            if file_change.old_path and file_change.old_path != file_change.new_path:
++                prompt += f"- Renamed from: {file_change.old_path}\n"
++            
++            if file_change.methods_changed:
++                prompt += f"- Modified Methods/Functions: {', '.join(file_change.methods_changed)}\n"
++            
++            if file_change.complexity:
++                prompt += f"- Cyclomatic Complexity: {file_change.complexity}\n"
++            
++            if file_change.diff:
++                diff_preview = file_change.diff[:2000]
++                if len(file_change.diff) > 2000:
++                    diff_preview += "\n... (diff truncated for brevity) ..."
++                prompt += f"\n**Code Diff:**\n``````\n"
++        
++        prompt += """
++
++## Analysis Request
++
++Please analyze these code changes with respect to the entire codebase and provide:
++
++### 1. Change Overview
++- Summarize the primary purpose and scope of these changes
++- Identify the main functional areas affected (e.g., sensor fusion, path planning, control algorithms)
++
++### 2. Benefits Analysis
++- What improvements do these changes bring to the ADAS system?
++- Are there performance optimizations, bug fixes, or new features?
++- How do these changes align with automotive safety standards (ISO 26262, ASPICE)?
++- Any improvements in code quality, maintainability, or testability?
++
++### 3. System Impact Assessment
++- Which ADAS subsystems are affected (e.g., perception, planning, control)?
++- Are there any potential impacts on system safety or reliability?
++- How might these changes affect system integration and testing?
++- Are there dependencies on other components that need attention?
++
++### 4. Technical Risk Analysis
++- Identify any potential risks or concerns with these changes
++- Are there edge cases that need additional testing?
++- Any impact on real-time performance or resource utilization?
++- Compliance considerations for automotive certification
++
++### 5. Recommendations
++- Suggest additional testing strategies specific to ADAS requirements
++- Recommend code review focus areas
++- Identify any follow-up refactoring opportunities
++- Integration testing recommendations
++
++Please provide a detailed, technically accurate analysis considering automotive ADAS best practices and safety requirements.
++"""
++        
++        return prompt
++
++
++# ============================================================================
++# OUTPUT FORMATTER
++# ============================================================================
++
++class OutputFormatter:
++    """Formats analysis results for different output formats"""
++    
++    @staticmethod
++    def save_to_file(analysis: CommitAnalysis, prompt: str, output_path: str):
++        """Save analysis and prompt to file"""
++        with open(output_path, 'w', encoding='utf-8') as f:
++            f.write("=" * 80 + "\n")
++            f.write("GIT COMMIT ANALYSIS REPORT FOR GEMINI CODE ASSIST\n")
++            f.write("=" * 80 + "\n\n")
++            f.write(prompt)
++            f.write("\n\n" + "=" * 80 + "\n")
++            f.write("END OF REPORT\n")
++            f.write("=" * 80 + "\n")
++        
++        print(f"\n✓ Report saved to: {output_path}")
++    
++    @staticmethod
++    def save_to_json(analysis: CommitAnalysis, output_path: str):
++        """Save analysis data as JSON"""
++        data = {
++            'repo_path': analysis.repo_path,
++            'commit_from': analysis.commit_from,
++            'commit_to': analysis.commit_to,
++            'commit_from_hash': analysis.commit_from_hash,
++            'commit_to_hash': analysis.commit_to_hash,
++            'total_files_changed': analysis.total_files_changed,
++            'total_lines_added': analysis.total_lines_added,
++            'total_lines_deleted': analysis.total_lines_deleted,
++            'file_changes': [
++                {
++                    'filename': fc.filename,
++                    'change_type': fc.change_type,
++                    'added_lines': fc.added_lines,
++                    'deleted_lines': fc.deleted_lines,
++                    'methods_changed': fc.methods_changed
++                }
++                for fc in analysis.file_changes
++            ]
++        }
++        
++        with open(output_path, 'w', encoding='utf-8') as f:
++            json.dump(data, f, indent=2)
++        
++        print(f"✓ JSON data saved to: {output_path}")
++    
++    @staticmethod
++    def print_summary(analysis: CommitAnalysis):
++        """Print summary to console"""
++        print("\n" + "=" * 80)
++        print("COMMIT ANALYSIS SUMMARY")
++        print("=" * 80)
++        print(f"Repository: {analysis.repo_path}")
++        print(f"From: {analysis.commit_from_hash[:8]} ({analysis.commit_from_date})")
++        print(f"To:   {analysis.commit_to_hash[:8]} ({analysis.commit_to_date})")
++        print(f"\nFiles Changed: {analysis.total_files_changed}")
++        print(f"Lines Added:   {analysis.total_lines_added}")
++        print(f"Lines Deleted: {analysis.total_lines_deleted}")
++        print("=" * 80 + "\n")
++
++
++# ============================================================================
++# MAIN TOOL CLASS
++# ============================================================================
++
++class GitCommitAnalysisTool:
++    """Main tool for analyzing Git commits and generating Gemini prompts"""
++    
++    def __init__(self, repo_path: str, commit_from: str, commit_to: str):
++        self.repo_path = repo_path
++        self.commit_from = commit_from
++        self.commit_to = commit_to
++        self.analyzer = CommitDifferenceAnalyzer(repo_path)
++        self.analysis = None
++        self.prompt = None
++    
++    def run_analysis(self) -> CommitAnalysis:
++        """Execute the complete analysis"""
++        print(f"Analyzing commits in: {self.repo_path}")
++        print(f"From: {self.commit_from}")
++        print(f"To:   {self.commit_to}")
++        print("\nProcessing...")
++        
++        self.analysis = self.analyzer.analyze_commits(
++            self.commit_from,
++            self.commit_to
++        )
++        
++        print("✓ Analysis complete!")
++        return self.analysis
++    
++    def generate_gemini_prompt(self) -> str:
++        """Generate prompt for Gemini Code Assist"""
++        if not self.analysis:
++            raise RuntimeError("Must run analysis before generating prompt")
++        
++        generator = GeminiPromptGenerator(self.analysis)
++        self.prompt = generator.generate_prompt()
++        return self.prompt
++    
++    def save_results(self, output_dir: str = "./output"):
++        """Save all results to files"""
++        if not self.analysis or not self.prompt:
++            raise RuntimeError("Must run analysis and generate prompt first")
++        
++        os.makedirs(output_dir, exist_ok=True)
++        
++        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
++        
++        prompt_file = os.path.join(
++            output_dir,
++            f"gemini_prompt_{timestamp}.txt"
++        )
++        OutputFormatter.save_to_file(self.analysis, self.prompt, prompt_file)
++        
++        json_file = os.path.join(
++            output_dir,
++            f"analysis_data_{timestamp}.json"
++        )
++        OutputFormatter.save_to_json(self.analysis, json_file)
++        
++        return prompt_file, json_file
++    
++    def display_summary(self):
++        """Display summary to console"""
++        if not self.analysis:
++            raise RuntimeError("Must run analysis first")
++        
++        OutputFormatter.print_summary(self.analysis)
++
++
++# ============================================================================
++# COMMAND-LINE INTERFACE
++# ============================================================================
++
++def main():
++    """Main entry point with CLI"""
++    parser = argparse.ArgumentParser(
++        description="Git Commit Analysis Tool for ADAS Development",
++        formatter_class=argparse.RawDescriptionHelpFormatter,
++        epilog="""
++Examples:
++  # Analyze between two commit hashes
++  python git_analysis_tool.py /path/to/repo abc123 def456
++  
++  # Analyze between branches
++  python git_analysis_tool.py /path/to/repo main feature-branch
++  
++  # Analyze with custom output directory
++  python git_analysis_tool.py /path/to/repo HEAD~5 HEAD --output ./reports
++        """
++    )
++    
++    parser.add_argument(
++        'repo_path',
++        type=str,
++        help='Path to the Git repository'
++    )
++    parser.add_argument(
++        'commit_from',
++        type=str,
++        help='Starting commit (SHA, branch, or tag)'
++    )
++    parser.add_argument(
++        'commit_to',
++        type=str,
++        help='Ending commit (SHA, branch, or tag)'
++    )
++    parser.add_argument(
++        '--output',
++        '-o',
++        type=str,
++        default='./output',
++        help='Output directory for reports (default: ./output)'
++    )
++    parser.add_argument(
++        '--no-save',
++        action='store_true',
++        help='Do not save results to files, only display'
++    )
++    
++    args = parser.parse_args()
++    
++    try:
++        tool = GitCommitAnalysisTool(
++            args.repo_path,
++            args.commit_from,
++            args.commit_to
++        )
++        
++        tool.run_analysis()
++        tool.generate_gemini_prompt()
++        tool.display_summary()
++        
++        if not args.no_save:
++            prompt_file, json_file = tool.save_results(args.output)
++            print("\n" + "=" * 80)
++            print("NEXT STEPS: HOW TO USE WITH GEMINI CODE ASSIST")
++            print("=" * 80)
++            print(f"1. Open Visual Studio Code")
++            print(f"2. Open Gemini Code Assist extension:")
++            print(f"   - Click the Gemini icon in the activity bar, OR")
++            print(f"   - Press Ctrl+Shift+P and search for 'Gemini'")
++            print(f"3. Open the generated prompt file:")
++            print(f"   {prompt_file}")
++            print(f"4. Copy all content and paste into Gemini Code Assist chat")
++            print(f"5. Review the AI-generated analysis and recommendations")
++            print(f"6. Apply insights to your code review and testing process")
++            print("=" * 80 + "\n")
++        else:
++            print("\n" + "=" * 80)
++            print("COPY THE FOLLOWING TO GEMINI CODE ASSIST:")
++            print("=" * 80 + "\n")
++            print(tool.prompt)
++    
++    except Exception as e:
++        print(f"\n✗ Error: {str(e)}", file=sys.stderr)
++        sys.exit(1)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/output/analysis_data_20251025_220214.json b/output/analysis_data_20251025_220214.json
+new file mode 100644
+index 0000000..37683ef
+--- /dev/null
++++ b/output/analysis_data_20251025_220214.json
+@@ -0,0 +1,22 @@
++{
++  "repo_path": "D:\\SWe\\AI\\Commit analyzer\\Test_myrepo",
++  "commit_from": "ad8d53b19ba6e1648b3838286508770c89da753e",
++  "commit_to": "a4b0d2eeccc79c166c1d43550e51ebbadac110d4",
++  "commit_from_hash": "ad8d53b19ba6e1648b3838286508770c89da753e",
++  "commit_to_hash": "a4b0d2eeccc79c166c1d43550e51ebbadac110d4",
++  "total_files_changed": 1,
++  "total_lines_added": 11,
++  "total_lines_deleted": 1,
++  "file_changes": [
++    {
++      "filename": "main.py",
++      "change_type": "ADD",
++      "added_lines": 11,
++      "deleted_lines": 1,
++      "methods_changed": [
++        "sum",
++        "main"
++      ]
++    }
++  ]
++}
+\ No newline at end of file
+diff --git a/output/gemini_prompt_20251025_220214.txt b/output/gemini_prompt_20251025_220214.txt
+new file mode 100644
+index 0000000..b21f0b9
+--- /dev/null
++++ b/output/gemini_prompt_20251025_220214.txt
+@@ -0,0 +1,81 @@
++================================================================================
++GIT COMMIT ANALYSIS REPORT FOR GEMINI CODE ASSIST
++================================================================================
++
++# Code Change Analysis Request for ADAS Automotive System
++
++## Context
++You are analyzing code changes in an automotive ADAS (Advanced Driver Assistance Systems) repository. This is a safety-critical system that requires thorough understanding of code modifications and their impact.
++
++## Repository Information
++- Repository Path: D:\SWe\AI\Commit analyzer\Test_myrepo
++- Analysis Period: 2025-10-25 21:15:03 to 2025-10-25 21:33:12
++
++## Commit Range
++### From Commit: ad8d53b1
++- Message: add new main,py
++- Author: ahmed
++- Date: 2025-10-25 21:15:03
++
++### To Commit: a4b0d2ee
++- Message: add sum function
++- Author: ahmed
++- Date: 2025-10-25 21:33:12
++
++## Summary of Changes
++- Total Files Modified: 1
++- Total Lines Added: 11
++- Total Lines Deleted: 1
++- Net Change: 10 lines
++
++## Detailed File Changes
++
++### File 1: main.py
++- Change Type: ADD
++- Lines Added: 11
++- Lines Deleted: 1
++- Modified Methods/Functions: sum, main
++- Cyclomatic Complexity: 1
++
++**Code Diff:**
++``````
++
++
++## Analysis Request
++
++Please analyze these code changes with respect to the entire codebase and provide:
++
++### 1. Change Overview
++- Summarize the primary purpose and scope of these changes
++- Identify the main functional areas affected (e.g., sensor fusion, path planning, control algorithms)
++
++### 2. Benefits Analysis
++- What improvements do these changes bring to the ADAS system?
++- Are there performance optimizations, bug fixes, or new features?
++- How do these changes align with automotive safety standards (ISO 26262, ASPICE)?
++- Any improvements in code quality, maintainability, or testability?
++
++### 3. System Impact Assessment
++- Which ADAS subsystems are affected (e.g., perception, planning, control)?
++- Are there any potential impacts on system safety or reliability?
++- How might these changes affect system integration and testing?
++- Are there dependencies on other components that need attention?
++
++### 4. Technical Risk Analysis
++- Identify any potential risks or concerns with these changes
++- Are there edge cases that need additional testing?
++- Any impact on real-time performance or resource utilization?
++- Compliance considerations for automotive certification
++
++### 5. Recommendations
++- Suggest additional testing strategies specific to ADAS requirements
++- Recommend code review focus areas
++- Identify any follow-up refactoring opportunities
++- Integration testing recommendations
++
++Please provide a detailed, technically accurate analysis considering automotive ADAS best practices and safety requirements.
++
++
++================================================================================
++END OF REPORT
++================================================================================
+
+```
+
+**Analysis Request:**
+1.  **RAM/ROM Consumption:**
+    *   How do the changes affect the memory footprint of the application?
+    *   Are there any new data structures or variables that would increase memory usage?
+    *   Are there any optimizations that would reduce memory usage?
+
+2.  **CPU Load:**
+    *   How do the changes affect the CPU load during runtime?
+    *   Are there any new algorithms or computations that would increase CPU usage?
+    *   Are there any optimizations that would reduce CPU usage?
+
+3.  **Potential Risks:**
+    *   Are there any potential performance bottlenecks introduced by these changes?
+    *   Are there any risks of memory leaks or excessive resource consumption?
+
+Please provide a detailed and quantitative analysis where possible.
