@@ -1,4 +1,5 @@
 import subprocess
+import os
 
 def run_command(command):
     """Runs a shell command and returns its output."""
@@ -26,13 +27,17 @@ def main():
     """Main function to analyze commits and generate a prompt."""
     print("  - Reading configuration...")
     # --- CONFIGURATION ---
-    repo_path = "D:/SWe/AI/Commit analyzer/Test_myrepo"
+    repo_path = "D:\SWe\AI\Test_myrepo"
     commit1 = "a4b0d2eeccc79c166c1d43550e51ebbadac110d4"
     commit2 = "7885d11f436fa71ca9720fe7e0e8c8129cac5785"
     # -------------------
     print(f"    - Repo Path: {repo_path}")
     print(f"    - Commit 1: {commit1}")
     print(f"    - Commit 2: {commit2}")
+
+    if not os.path.isdir(repo_path):
+        print(f"  - ERROR: Repository path not found: {repo_path}")
+        return
 
     git_diff_command = f'git -C "{repo_path}" diff {commit1} {commit2}'
     diff_output = run_command(git_diff_command)

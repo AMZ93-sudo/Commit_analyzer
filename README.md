@@ -26,10 +26,10 @@ Before running this tool, ensure you have the following installed and configured
     *   **Installation:** Download from [python.org](https://www.python.org/downloads/windows/). Ensure you check "Add Python to PATH" during installation.
     *   **Verification:** Open Command Prompt and type `python --version`.
 
-3.  **AutoHotkey v1.x:**
+3.  **AutoHotkey v2.x:**
     *   **Description:** Powerful scripting language for Windows automation, used to control Visual Studio Code.
-    *   **Installation:** Download from [autohotkey.com](https://www.autohotkey.com/download/). Choose "v1.1 (Installer)".
-    *   **Verification:** After installation, Right-click on your desktop, select "New" > "AutoHotkey Script". If you see this option, it's installed. Double-clicking an `.ahk` file should execute it.
+    *   **Installation:** Download from [autohotkey.com](https://www.autohotkey.com/download/). Choose the latest v2.x installer.
+    *   **Verification:** After installation, open a command prompt and type `AutoHotkey.exe /?`. If it shows help, it's installed.
 
 4.  **Visual Studio Code:**
     *   **Description:** Your code editor, where Gemini Code Assist runs.
@@ -39,7 +39,7 @@ Before running this tool, ensure you have the following installed and configured
 5.  **Gemini Code Assist Extension for VS Code:**
     *   **Description:** The AI assistant that will analyze your code.
     *   **Installation:** Install directly from the VS Code Extensions Marketplace (search for "Gemini Code Assist").
-    *   **Verification:** Ensure the Gemini extension is enabled and you can open its chat window (default shortcut is `Alt+G`).
+    *   **Verification:** Ensure the Gemini extension is enabled and you can open its chat window.
 
 ## 📦 Installation
 
@@ -80,13 +80,15 @@ This tool requires minor configuration to adapt to your environment and specific
         ```autohotkey
         ; Example configuration:
         vscode_path = "C:\Users\YourUser\AppData\Local\Programs\Microsoft VS Code\Code.exe"
-        vscode_dir  = "C:\Users\YourUser\AppData\Local\Programs\Microsoft VS Code\"
         ```
-    *   **`gemini_shortcut`**: Ensure this matches the keyboard shortcut you use to open the Gemini Code Assist chat window in VS Code. The default is `!g` (Alt+G).
-        ```autohotkey
-        ; Example configuration:
-        gemini_shortcut = "!g" ; ! for Alt, ^ for Ctrl, + for Shift
+
+3.  **`run_automation.bat`**
+    *   Open `run_automation.bat` in a text editor.
+    *   Locate the line that executes the AutoHotkey script:
+        ```batch
+        "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "D:\SWe\AI\Commit analyzer\Commit_analyzer\gemini_automation.ahk"
         ```
+    *   **`AutoHotkey64.exe` Path**: If your AutoHotkey v2 installation is not in the default location (`C:\Program Files\AutoHotkey\v2\`), you will need to update the path to `AutoHotkey64.exe` in this line.
 
 ## 🚀 How to Use
 
@@ -106,9 +108,9 @@ The `run_automation.bat` script will orchestrate the following:
 ## ⚠️ Troubleshooting
 
 *   **"ERROR: clip.exe not found." (from Python script):** Ensure your Windows installation is not corrupted. `clip.exe` is a standard Windows utility.
-*   **VS Code doesn't open or isn't detected:** Double-check the `vscode_path` and `vscode_dir` variables in `gemini_automation.ahk`. Ensure the path is exact.
-*   **Gemini extension doesn't open:** Verify `gemini_shortcut` in `gemini_automation.ahk` is correct and matches your VS Code shortcut for Gemini.
-*   **Prompt is not pasted/submitted:** If issues persist, there might be subtle timing differences on your system. You can try adjusting the `Sleep` durations in `gemini_automation.ahk` (e.g., `Sleep, 8000` to `Sleep, 10000`). Make small changes and test.
+*   **VS Code doesn't open or isn't detected:** Double-check the `vscode_path` variable in `gemini_automation.ahk`. Ensure the path is exact.
+*   **AutoHotkey script doesn't run or `AutoHotkey64.exe` not found:** Verify the path to `AutoHotkey64.exe` in `run_automation.bat` is correct for your AutoHotkey v2 installation.
+*   **Prompt is not pasted/submitted:** If issues persist, there might be subtle timing differences on your system. You can try adjusting the `Sleep` durations in `gemini_automation.ahk` (e.g., increase `Sleep(5000)` to `Sleep(8000)`). Make small changes and test.
 
 ## 📂 Repository Structure
 

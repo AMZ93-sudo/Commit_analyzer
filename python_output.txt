@@ -1,0 +1,10 @@
+D:\SWe\AI\Commit analyzer\Commit_analyzer\commit_analyzer.py:30: SyntaxWarning: invalid escape sequence '\S'
+  repo_path = "D:\SWe\AI\Test_myrepo"
+  - Reading configuration...
+    - Repo Path: D:\SWe\AI\Test_myrepo
+    - Commit 1: a4b0d2eeccc79c166c1d43550e51ebbadac110d4
+    - Commit 2: 7885d11f436fa71ca9720fe7e0e8c8129cac5785
+  - Executing command: git -C "D:\SWe\AI\Test_myrepo" diff a4b0d2eeccc79c166c1d43550e51ebbadac110d4 7885d11f436fa71ca9720fe7e0e8c8129cac5785
+  - Command executed successfully.
+  - Git diff successful. Generating prompt...
+  - SUCCESS: Prompt copied to clipboard.

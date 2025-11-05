@@ -1,0 +1,1 @@
+Automation script started (v11).\nError: Command Palette not found.\n
