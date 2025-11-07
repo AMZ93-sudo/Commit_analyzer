@@ -2,6 +2,7 @@
 
 ; --- CONFIGURATION ---
 vscode_path := "C:\Users\20114\AppData\Local\Programs\Microsoft VS Code\Code.exe"
+changed_files_path := A_ScriptDir . "\changed_files.txt"
 ; -------------------
 
 try
@@ -28,20 +29,88 @@ if !WinWaitActive("ahk_exe Code.exe",, 5)
     ExitApp()
 }
 
-Sleep(5000) ; Increased sleep to give VS Code more time to settle
+Sleep(5000) ; Give VS Code time to finish loading
 
-Send("^+p") ; Send Ctrl+Shift+P to open the command palette
-Sleep(1000)
-SendInput("Gemini: Focus on Chat View{Enter}") ; Type the command to open Gemini Chat and press Enter
-Sleep(5000) ; Wait for Gemini to open and focus
-
-; Try pasting multiple times to ensure it works
-Loop 3
-{
-    Send("^v") ; Paste the content from the clipboard
-    Sleep(1000) ; Wait 1 second between attempts
-}
-
-Send("{Enter}") ; Press Enter to submit the prompt
+OpenChangedFiles(changed_files_path)
+PastePrompt()
 
 ExitApp()
+
+OpenChangedFiles(fileListPath)
+{
+    if !FileExist(fileListPath)
+    {
+        return
+    }
+
+    try
+    {
+        fileContent := FileRead(fileListPath, "UTF-8")
+    }
+    catch
+    {
+        return
+    }
+
+    files := StrSplit(fileContent, "`n")
+    for filePath in files
+    {
+        trimmed := Trim(filePath, " `r`t")
+        if (trimmed = "")
+        {
+            continue
+        }
+
+        Send("^p")
+        Sleep(500)
+        SendText(trimmed)
+        Sleep(600)
+        Send("{Enter}")
+        Sleep(900)
+    }
+
+    ; Close the quick-open box so subsequent automation doesn't type into it
+    Send("{Esc}")
+    Sleep(400)
+}
+
+EnsureGeminiChatActive()
+{
+    WinActivate("ahk_exe Code.exe")
+    Sleep(200)
+    Send("{Esc}")
+    Sleep(200)
+    RunPaletteCommand("Gemini Code Assist: Open Chat")
+    RunPaletteCommand("Gemini: Focus on Chat View")
+}
+
+RunPaletteCommand(commandText)
+{
+    Send("^+p")
+    Sleep(700)
+    Send("^a")
+    Sleep(150)
+    SendText(">" . commandText)
+    Sleep(250)
+    Send("{Enter}")
+    Sleep(3500)
+}
+
+PastePrompt()
+{
+    if !ClipWait(5)
+    {
+        MsgBox("Clipboard data not found. Ensure commit_analyzer.py ran successfully.")
+        return
+    }
+
+    EnsureGeminiChatActive()
+    Sleep(400)
+    Send("^a")
+    Sleep(250)
+    Send("^v")
+    Sleep(800)
+
+    Send("{Enter}")
+    Sleep(1200)
+}

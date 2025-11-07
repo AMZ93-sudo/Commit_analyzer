@@ -1,58 +1,14 @@
 You are an expert embedded systems engineer specializing in ADAS (Advanced Driver Assistance Systems) code review. Analyze the following commit changes with focus on embedded system constraints and real-time performance.
 
 ## COMMIT INFORMATION
-From: f35ce3d4c546521d0da5114a1eb4a1b7bc0ea971 → To: 242e2edf2804bd6c95d7452f843fdc1febb3979a
-Branch: dev | Author: ahmed -> ahmed
+From: {COMMIT_HASH_OLD} → To: {COMMIT_HASH_NEW}
+Branch: {BRANCH_NAME} | Author: {AUTHOR_NAME}
 
 ## CHANGED FILES
-- main_c_language.c
+{FILE_LIST}
 
 ## DIFF CONTENT
-diff --git a/main_c_language.c b/main_c_language.c
-index bd2568f..fdc3995 100644
---- a/main_c_language.c
-+++ b/main_c_language.c
-@@ -19,6 +19,40 @@ void printTriangle(int size)
-         printf("\n");
-     }
- }
-+int fibonacci(int n)
-+{
-+    if (n <= 1)
-+        return n;
-+    return fibonacci(n - 1) + fibonacci(n - 2);
-+}
-+
-+void printDiamond(int size)
-+{
-+    for (int i = 1; i <= size; i++)
-+    {
-+        for (int j = 0; j < size - i; j++)
-+        {
-+            printf(" ");
-+        }
-+        for (int j = 0; j < 2 * i - 1; j++)
-+        {
-+            printf("*");
-+        }
-+        printf("\n");
-+    }
-+    for (int i = size - 1; i >= 1; i--)
-+    {
-+        for (int j = 0; j < size - i; j++)
-+        {
-+            printf(" ");
-+        }
-+        for (int j = 0; j < 2 * i - 1; j++)
-+        {
-+            printf("*");
-+        }
-+        printf("\n");
-+    }
-+}
- 
- int main()
- {
+{DIFF_CONTENT}
 
 ---
 

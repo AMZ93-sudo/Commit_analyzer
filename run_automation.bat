@@ -10,7 +10,12 @@ IF EXIST "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" (
 )
 
 (ECHO Generating prompt...) >> batch_log.txt
-python.exe "D:/SWe/AI/Commit analyzer/Commit_analyzer/commit_analyzer.py" >> batch_log.txt 2>&1
+IF EXIST "D:\SWe\AI\Commit analyzer\Commit_analyzer\analysis_config.json" (
+    python.exe "D:/SWe/AI/Commit analyzer/Commit_analyzer/commit_analyzer.py" >> batch_log.txt 2>&1
+) ELSE (
+    (ECHO Missing analysis_config.json. Run analysis_manager.py first.) >> batch_log.txt
+    GOTO :EOF
+)
 
 (ECHO Executing AutoHotkey script...) >> batch_log.txt
 "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "D:\SWe\AI\Commit analyzer\Commit_analyzer\gemini_automation.ahk" >> batch_log.txt 2>&1

@@ -1,0 +1,26 @@
+<section id="instructions">
+  <h2>Code Review Request</h2>
+  <p>You are Gemini Code Assist reviewing repository <strong>{{REPO_NAME}}</strong>. Compare baseline commit <code>{{BASE_COMMIT}}</code> against target commit <code>{{TARGET_COMMIT}}</code>. Use only the files already opened in VS Code as your source of truth. Avoid external data or speculation.</p>
+</section>
+
+<section id="files">
+  <h3>Files In Scope</h3>
+  <ul>
+    {{FILES_LIST}}
+  </ul>
+  <p>If a file is open but not relevant, state that explicitly.</p>
+</section>
+
+<section id="deliverable">
+  <h3>Deliverable</h3>
+  <p>Return valid HTML (no Markdown) with the following structure:</p>
+  <ol>
+    <li><strong>&lt;section id="manager-brief"&gt;</strong>: three concise bullets explaining why these changes were made and their delivery impact.</li>
+    <li><strong>&lt;section id="change-details"&gt;</strong>: for each file, output <code>&lt;article data-file="relative/path"&gt;</code> describing what changed and implications for integration or maintenance. Mark cosmetic-only edits.</li>
+    <li><strong>&lt;section id="performance"&gt;</strong>: a table covering CPU Load, RAM, and ROM with Impact = Increase/Decrease/Neutral/Unknown plus a one-sentence justification grounded in the code.</li>
+    <li><strong>&lt;section id="risks-actions"&gt;</strong>: list regressions, testing gaps, and follow-up tasks; write "None observed" if the diff gives no evidence.</li>
+  </ol>
+  <p>Keep every bullet or cell to a single sentence. Always mention when data is insufficient.</p>
+</section>
+
+<p class="export-note">Ready for Gemini HTML export.</p>

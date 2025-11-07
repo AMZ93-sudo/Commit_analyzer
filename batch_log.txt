@@ -2,15 +2,23 @@ Batch script started
 Checking for AutoHotkey executable...
 AutoHotkey executable found.
 Generating prompt...
-D:\SWe\AI\Commit analyzer\Commit_analyzer\commit_analyzer.py:30: SyntaxWarning: invalid escape sequence '\S'
-  repo_path = "D:\SWe\AI\Test_myrepo"
-  - Reading configuration...
+  - Preparing commit analysis input...
     - Repo Path: D:\SWe\AI\Test_myrepo
-    - Commit 1: a4b0d2eeccc79c166c1d43550e51ebbadac110d4
-    - Commit 2: 7885d11f436fa71ca9720fe7e0e8c8129cac5785
-  - Executing command: git -C "D:\SWe\AI\Test_myrepo" diff a4b0d2eeccc79c166c1d43550e51ebbadac110d4 7885d11f436fa71ca9720fe7e0e8c8129cac5785
+    - Commit 1: f35ce3d4c546521d0da5114a1eb4a1b7bc0ea971
+    - Commit 2: 242e2edf2804bd6c95d7452f843fdc1febb3979a
+  - Executing command: git -C D:\SWe\AI\Test_myrepo diff f35ce3d4c546521d0da5114a1eb4a1b7bc0ea971 242e2edf2804bd6c95d7452f843fdc1febb3979a
   - Command executed successfully.
-  - Git diff successful. Generating prompt...
+  - Executing command: git -C D:\SWe\AI\Test_myrepo diff --name-only f35ce3d4c546521d0da5114a1eb4a1b7bc0ea971 242e2edf2804bd6c95d7452f843fdc1febb3979a
+  - Command executed successfully.
+  - Wrote changed file list to D:\SWe\AI\Commit analyzer\Commit_analyzer\changed_files.txt
+  - Executing command: git -C D:\SWe\AI\Test_myrepo show -s --format=%H%n%an%n%ad f35ce3d4c546521d0da5114a1eb4a1b7bc0ea971
+  - Command executed successfully.
+  - Executing command: git -C D:\SWe\AI\Test_myrepo show -s --format=%H%n%an%n%ad 242e2edf2804bd6c95d7452f843fdc1febb3979a
+  - Command executed successfully.
+  - Executing command: git -C D:\SWe\AI\Test_myrepo name-rev --name-only 242e2edf2804bd6c95d7452f843fdc1febb3979a
+  - Command executed successfully.
+  - Loading prompt template...
+  - Prompt saved to D:\SWe\AI\Commit analyzer\Commit_analyzer\prompt.txt
   - SUCCESS: Prompt copied to clipboard.
 Executing AutoHotkey script...
 Batch script finished.
